@@ -10,5 +10,5 @@ while True:
 	#to test the code in the terminal
 	print(datetime.datetime.now())
 
-	subprocess.call("/home/pi/Desktop/Startup/SHT15bis.py", shell=True)
+	subprocess.call("/home/pi/Desktop/Startup/SHT15.py", shell=True)
 	time.sleep(4 - ((time.time()-starttime) % 4))
