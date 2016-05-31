@@ -1,0 +1,120 @@
+#!/usr/bin/python3
+
+#By Lars-Martin Hejll
+#http://softwarefun.org
+#windData.py
+#collects wind speed and direction
+#Using Weather Sensor Assembly p/n 80422 Imported by Argent Data Systems
+#from sparkfun.com
+# one RPS = 1.492 MPH of wind rfactor (datasheet)
+
+from time import sleep
+import time
+import RPi.GPIO as GPIO, time, os
+import pymysql
+pymysql.install_as_MySQLdb()
+
+DEBUG = 0
+counter = 0.0
+finishtime = 0
+
+rfactor = 1.492 #one RPS factor
+#samples = 3
+samples = 0.1
+speed = 0.0
+directionPin = 25
+speedPin = 5
+state = False
+
+#setup GPIO's
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(speedPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#direction wil be switched between in/out (RC circuit)
+
+#MySQL setup
+conn = pymysql.connect("localhost","root","Australia57","WeatherData")
+c = conn.cursor()
+
+#Test readings - benchmarking to be made again since Resistor is not the same
+#ideal numbers @ 20 deg. C
+#North = 200 - 230
+#NorthWest = 110 - 130
+#West = 45 - 60
+#SouthWest = 370 - 470
+#South = 1830 - 1890
+#SouthEast = 2300 - 3600
+#East = 6500 - 6800
+#NorthEast = 750 - 950
+
+
+def getDirection ():
+        reading = 0
+        GPIO.setup(directionPin, GPIO.OUT)
+        GPIO.output(directionPin, GPIO.LOW)
+        time.sleep(0.1)
+
+        GPIO.setup(directionPin, GPIO.IN)
+        # This takes about 1 millisecond p/loop
+        while (GPIO.input(directionPin) == GPIO.LOW):
+                reading += 1
+        #rough numbers to deal with temp. changes        
+       # if (reading > 189 and reading < 230):
+       #         return ("North")
+       # elif (reading > 110 and reading < 190):
+       #         return ("NorthWest")
+       # elif (reading > 45 and reading < 60):
+       #         return ("West")
+       # elif (reading > 330 and reading < 470):
+       #         return ("SouthWest")
+       # elif (reading > 1600 and reading < 2200):
+       #         return ("South")
+       # elif (reading > 2300 and reading < 4500):
+       #         return ("SouthEast")
+       # elif (reading > 5600 and reading < 6800):
+       #         return ("East")
+       # elif (reading > 750 and reading < 950):
+       #         return ("NorthEast")
+        else:
+                return(reading)
+
+#Speed measurment
+def getSpeed():
+#    Loop some seconds (samples) and record pulses
+
+	counter = 0.0 #numbers of interrupt
+	# finishtime is right now (clock time) + 100 real seconds, not 
+	# CPU cycles
+	endTime = (int(time.time()) + samples)
+	state = False
+	while (int(time.time()) < endTime):
+		if ( GPIO.input(speedPin) == True ):
+			state = True #closed
+		# wait for switch for open
+		if ((state == True) and (GPIO.input(speedPin) == False)):
+			# State is now open!
+			state = False
+			# count it!
+			counter = counter + 1
+#	counter is the total number of pulses during the sample time
+#	speed in MPH
+	
+	speed = ((counter / samples)  * rfactor)
+	return (speed*0.44704)
+
+def writeToDb(speed, direction):
+        c.execute('''INSERT INTO Wind (WindSpeed,WindDirection) VALUES (%s,%s)''',(speed,direction))
+        conn.commit()	
+
+def main():
+    speed = getSpeed()
+    print (speed);
+    direction = getDirection()
+    print (direction);
+    writeToDb(speed,direction)
+    print("Writen to db");
+if __name__ == '__main__':
+        main()
+
+#By Lars-Martin Hejll
+#http://softwarefun.org
+#windData.py
