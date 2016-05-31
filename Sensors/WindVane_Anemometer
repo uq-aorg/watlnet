@@ -18,12 +18,11 @@ DEBUG = 0
 counter = 0.0
 finishtime = 0
 
-rfactor = 1.492 #one RPS factor
-#samples = 3
-samples = 0.1
+rfactor = 1.492 #arbitrary factor, will change when the anemometer is calibrated in the wind tunnel
+samples = 3 #arbitrary number of samples, needs to be precised
 speed = 0.0
-directionPin = 25
-speedPin = 5
+directionPin = 25 # corresponds to the pin 29 on the Raspberry GPIO
+speedPin = 5 # corresponds to the pin 22 on the Raspberry GPIO
 state = False
 
 #setup GPIO's
@@ -35,18 +34,9 @@ GPIO.setup(speedPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 conn = pymysql.connect("localhost","root","Australia57","WeatherData")
 c = conn.cursor()
 
-#Test readings - benchmarking to be made again since Resistor is not the same
-#ideal numbers @ 20 deg. C
-#North = 200 - 230
-#NorthWest = 110 - 130
-#West = 45 - 60
-#SouthWest = 370 - 470
-#South = 1830 - 1890
-#SouthEast = 2300 - 3600
-#East = 6500 - 6800
-#NorthEast = 750 - 950
+# The following code defines the functions that will be used by the two parts of this sensor : the Wind Vane and the Anemometer
 
-
+# WindVane code
 def getDirection ():
         reading = 0
         GPIO.setup(directionPin, GPIO.OUT)
@@ -57,27 +47,27 @@ def getDirection ():
         # This takes about 1 millisecond p/loop
         while (GPIO.input(directionPin) == GPIO.LOW):
                 reading += 1
-        #rough numbers to deal with temp. changes        
-       # if (reading > 189 and reading < 230):
-       #         return ("North")
-       # elif (reading > 110 and reading < 190):
-       #         return ("NorthWest")
-       # elif (reading > 45 and reading < 60):
-       #         return ("West")
-       # elif (reading > 330 and reading < 470):
-       #         return ("SouthWest")
-       # elif (reading > 1600 and reading < 2200):
-       #         return ("South")
-       # elif (reading > 2300 and reading < 4500):
-       #         return ("SouthEast")
-       # elif (reading > 5600 and reading < 6800):
-       #         return ("East")
-       # elif (reading > 750 and reading < 950):
-       #         return ("NorthEast")
+        #these readings come from the calibration the creator of the code did with his own setup. They will change when the Wind Vane is calibrated. 
+        if (reading > 189 and reading < 230):
+                return ("North")
+        elif (reading > 110 and reading < 190):
+                return ("NorthWest")
+        elif (reading > 45 and reading < 60):
+                return ("West")
+        elif (reading > 330 and reading < 470):
+                return ("SouthWest")
+        elif (reading > 1600 and reading < 2200):
+                return ("South")
+        elif (reading > 2300 and reading < 4500):
+                return ("SouthEast")
+        elif (reading > 5600 and reading < 6800):
+                return ("East")
+        elif (reading > 750 and reading < 950):
+                return ("NorthEast")
         else:
                 return(reading)
 
-#Speed measurment
+# Anemometer code
 def getSpeed():
 #    Loop some seconds (samples) and record pulses
 
@@ -101,20 +91,22 @@ def getSpeed():
 	speed = ((counter / samples)  * rfactor)
 	return (speed*0.44704)
 
+# function writing in the MySQLdatabase
 def writeToDb(speed, direction):
         c.execute('''INSERT INTO Wind (WindSpeed,WindDirection) VALUES (%s,%s)''',(speed,direction))
         conn.commit()	
 
+# The following function needs to be chronologically adjusted
 def main():
     speed = getSpeed()
     print (speed);
     direction = getDirection()
     print (direction);
     writeToDb(speed,direction)
-    print("Writen to db");
 if __name__ == '__main__':
         main()
 
+# Original creator of the code :
 #By Lars-Martin Hejll
 #http://softwarefun.org
 #windData.py
