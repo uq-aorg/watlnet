@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+from time import sleep
+import RPi.GPIO as GPIO
+from pi_sht1x import SHT1x
+import pymysql
+pymysql.install_as_MySQLdb()
+
+
+DATA_PIN = 18
+SCK_PIN = 23
+#connecting to mysql database with pymysql command (mysql won't work with python3)
+conn = pymysql.connect("localhost","root","Australia57","WeatherData")
+
+
+def main():
+   # print('Test: using default values: 3.5V, High resolution, no heater, otp_no_reload off, CRC checking enabled...')
+    with SHT1x(DATA_PIN, SCK_PIN, gpio_mode=GPIO.BCM) as sensor:
+
+ #       date=datetime.datetime.now()
+        temp = sensor.read_temperature() # function which is defined in the package downloaded in the /usr/local/lib/python3.4
+        humidity = sensor.read_humidity(temp)
+        dewp = sensor.calculate_dew_point(temp, humidity)
+        print(sensor) # display the measures in the terminal
+        c = conn.cursor()
+        c.execute("INSERT INTO Temperature_Humidity(Temperature,Humidity,DewPoint) VALUES('%s','%s','%s')", (temp,humidity,dewp))
+        conn.commit() # store data into mysql database named Measurements, in the SHT15 table
+            
+    print('Test complete.\n')
+
+if __name__ == "__main__":
+    main()
